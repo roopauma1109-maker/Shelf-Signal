@@ -1,35 +1,49 @@
-# <Your product name>
+# Rural FMCG Insights
 
-> Fill this top section from your Examate project card on Day 1. Replace every line in angle brackets.
+## Problem Understanding
 
-## Problem
-<3–5 sentences: who struggles with what today, and what your product changes.>
+FMCG companies publish annual reports and BRSRs containing information about rural demand, pricing strategies, new product launches, and market growth. However, these reports are often hundreds of pages long, making them difficult to access on budget smartphones with slow internet connections.
 
-## Who it is for
-<One or two real user types, for example "compliance officer at a gold-loan NBFC in Coimbatore".>
+Sales officers at FMCG distributors need quick, relevant information from these reports to understand company strategies and make better rural stock-planning decisions.
 
-## Signature feature
-<One sentence: the feature only your product has.>
+## Proposed Solution
 
-## Hardest problem (my interview story)
-<In your own words, from your project card.>
+Build a mobile-friendly assistant that helps users ask questions about FMCG company reports and receive short, relevant answers without reading entire PDFs.
 
-## Dataset
-| Source | Link | Documents | Pages | Licence / terms |
-|---|---|---|---|---|
-| <name> | <url> | <n> | <n> | <licence> |
+The system retrieves relevant information from reports and provides concise answers with source references while minimizing data usage and loading time.
 
-## 10 real questions
-See [docs/QUESTIONS.md](docs/QUESTIONS.md).
+## Report Coverage
 
-## Run it
-```bash
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
-cp .env.example .env                                 # Windows: copy .env.example .env
-uvicorn app.main:app --reload
-curl localhost:8000/health
-```
+The project will cover six FMCG companies over three years:
 
-## Live link
-<Added in Week 2>
+- Hindustan Unilever Limited (HUL)
+- ITC Limited
+- Nestlé India
+- Dabur India
+- Marico
+- Britannia Industries
+
+**Target:** At least 18 annual reports and 6,000+ pages, collected from official investor and company websites, along with relevant BRSR documents.
+
+## Key Focus Areas
+
+- Rural market demand and growth
+- Pricing changes and product affordability
+- New product launches and smaller pack sizes
+- Distribution expansion and rural market reach
+- Comparison of company strategies across three years
+
+## Tech Stack
+
+- **Programming Language:** Python
+- **PDF Processing:** PyMuPDF
+- **Text Embeddings:** Sentence Transformers
+- **Vector Database:** FAISS
+- **Backend:** FastAPI
+- **Frontend:** Streamlit
+- **Database:** SQLite
+- **AI/LLM:** LLM-based question answering with Retrieval-Augmented Generation (RAG)
+
+## Expected Outcome
+
+A lightweight, mobile-friendly solution that converts large corporate reports into simple, source-backed answers, helping FMCG sales officers understand market trends and plan rural stock more effectively.
