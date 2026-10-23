@@ -1,6 +1,7 @@
 
-import fitz
 from pathlib import Path
+
+import fitz
 
 
 def extract_pdf_text(pdf_path):

@@ -1,6 +1,7 @@
 
-from app.pdf_reader import extract_pdf_text
 from pathlib import Path
+
+from app.pdf_reader import extract_pdf_text
 
 pdf_path = Path("data/sample/HUL/HUL-2025-26.pdf")
 pages = extract_pdf_text(pdf_path)
