@@ -1,28 +1,62 @@
+
 # ShelfSignal Dataset
 
-| Company | Report | Source URL | Pages | Downloaded On |
-|---|---|---|---|---|
-| HUL | Integrated Annual Report 2025–26 | https://www.hul.co.in/investors/annual-reports-and-performance-highlights/annual-reports/ | 244 pages with extractable text | 23-Oct-2026 |
+## Project Overview
 
-Full dataset files will be stored in `data/raw/`. Sample reports are stored in `data/sample/`.
+ShelfSignal collects annual reports from six FMCG companies to support research on rural growth, pricing, and business performance.
 
-## Current Progress
+The reports are stored as PDF files in the `data/sample/` directory.
 
-- One HUL annual report collected.
-- PDF text extraction tested successfully.
-- More reports are required to meet the Week 1 target of 50+ pages of collected documents.
+## Collected Reports
 
-## Planned Companies
+| S.No. | Company | Report | File Path |
+|---:|---|---|---|
+| 1 | Hindustan Unilever Limited (HUL) | Annual Report 2025–26 | `data/sample/HUL/HUL-2025-26.pdf` |
+| 2 | ITC Limited | Annual Report 2025–26 | `data/sample/ITC/ITC-2025-26.pdf` |
+| 3 | Nestlé India | Annual Report 2025–26 | `data/sample/Nestle_India/Nestle-2025-26.pdf` |
+| 4 | Dabur India | Annual Report 2025–26 | `data/sample/Dabur/Dabur-2025-26.pdf` |
+| 5 | Marico Limited | Annual Report 2025–26 | `data/sample/Marico/Marico-2025-26.pdf` |
+| 6 | Britannia Industries | Annual Report 2025–26 | `data/sample/Britannia/Britannia-2025-26.pdf` |
 
-- HUL
-- ITC
-- Nestlé India
-- Dabur India
-- Marico
-- Britannia
+## Dataset Directory Structure
+
+```text
+Shelf-Signal/
+├── data/
+│   └── sample/
+│       ├── HUL/
+│       │   └── HUL-2025-26.pdf
+│       ├── ITC/
+│       │   └── ITC-2025-26.pdf
+│       ├── Nestle_India/
+│       │   └── Nestle-2025-26.pdf
+│       ├── Dabur/
+│       │   └── Dabur-2025-26.pdf
+│       ├── Marico/
+│       │   └── Marico-2025-26.pdf
+│       └── Britannia/
+│           └── Britannia-2025-26.pdf
+├── DATASET.md
+├── PROGRESS.md
+└── README.md
+```
+
+## Companies Covered
+
+The dataset covers the following FMCG companies:
+
+1. Hindustan Unilever Limited (HUL)
+2. ITC Limited
+3. Nestlé India
+4. Dabur India
+5. Marico Limited
+6. Britannia Industries
 
 ## Data Collection Notes
 
-- Record the source URL, reporting year, and page count for each report.
-- Verify extracted text before using report content as evidence.
-- Include PDF page numbers in answers.
+- Annual report PDFs are organized by company.
+- Each report is stored in its respective company folder.
+- The reporting year is included in each PDF filename.
+- PDF page counts and text extraction details will be documented separately after verification.
+- The collected reports will be used as source documents for researching FMCG rural growth and pricing.
+
