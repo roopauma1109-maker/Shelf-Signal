@@ -52,11 +52,28 @@ The dataset covers the following FMCG companies:
 5. Marico Limited
 6. Britannia Industries
 
+## Dataset Inventory
+
+| Company | Report | Total Pages | Pages with Text |
+|---|---|---:|---:|
+| Britannia | 2025-26 | 189 | 189 |
+| Dabur | 2025-26 | 623 | 622 |
+| HUL | 2025-26 | 244 | 244 |
+| ITC | 2025-26 | 412 | 411 |
+| Marico | 2025-26 | 279 | 279 |
+| Nestle India | 2025-26 | 306 | 304 |
+
+Total reports: 6
+Total pages: 2053
+Pages with extractable text: 2049
+
 ## Data Collection Notes
 
-- Annual report PDFs are organized by company.
-- Each report is stored in its respective company folder.
+- Annual report PDFs from six FMCG companies are organized by company.
+- Each report is stored in its respective company folder under `data/sample/`.
 - The reporting year is included in each PDF filename.
-- PDF page counts and text extraction details will be documented separately after verification.
-- The collected reports will be used as source documents for researching FMCG rural growth and pricing.
+- All six PDFs have been verified for page counts and text extraction.
+- A total of 2,053 pages were identified, with extractable text available on 2,049 pages.
+- PDF page counts and text extraction details are documented in the dataset inventory.
+- The collected reports will be used as source documents for researching FMCG rural growth, sales performance, and pricing.
 
