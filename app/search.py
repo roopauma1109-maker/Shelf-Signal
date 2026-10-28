@@ -20,9 +20,13 @@ def load_metadata() -> list[dict]:
 def search(
     question: str,
     top_k: int = 5,
+    company: str | None = None,
 ) -> list[dict]:
     if not question.strip():
         raise ValueError("Question cannot be empty.")
+
+    if top_k < 1:
+        raise ValueError("top_k must be at least 1.")
 
     if not INDEX_FILE.exists() or not METADATA_FILE.exists():
         raise FileNotFoundError(
@@ -42,12 +46,10 @@ def search(
         [question],
         normalize_embeddings=True,
         convert_to_numpy=True,
-    )
+    ).astype("float32")
 
-    scores, indices = index.search(
-        question_vector.astype("float32"),
-        min(top_k, index.ntotal),
-    )
+    # Retrieve candidates from the full index, then filter by company.
+    scores, indices = index.search(question_vector, index.ntotal)
 
     results = []
 
@@ -55,16 +57,35 @@ def search(
         if idx < 0:
             continue
 
-        result = metadata[int(idx)].copy()
+        record = metadata[int(idx)]
+
+        if (
+            company
+            and record["company"].casefold() != company.strip().casefold()
+        ):
+            continue
+
+        result = record.copy()
         result["similarity_score"] = float(score)
         results.append(result)
+
+        if len(results) >= top_k:
+            break
 
     return results
 
 
 if __name__ == "__main__":
     question = input("Enter your question: ")
-    results = search(question)
+    company = input(
+        "Company filter (Britannia, HUL, ITC, Dabur, Marico, Nestle_India; "
+        "press Enter for all): "
+    ).strip() or None
+
+    results = search(question, company=company)
+
+    if not results:
+        print("No matching results found.")
 
     for number, result in enumerate(results, start=1):
         print(f"\n--- Result {number} ---")
