@@ -48,12 +48,12 @@ def search(
         convert_to_numpy=True,
     ).astype("float32")
 
-    # Retrieve candidates from the full index, then filter by company.
+    # Search the index and filter results by company if requested.
     scores, indices = index.search(question_vector, index.ntotal)
 
     results = []
 
-    for score, idx in zip(scores[0], indices[0]):
+    for score, idx in zip(scores[0], indices[0], strict=True):
         if idx < 0:
             continue
 
