@@ -1,4 +1,3 @@
-
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,7 +9,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "shelfsignal"
+    app_name: str = "ShelfSignal"
     environment: str = "local"
 
     gemini_api_key: str | None = None
