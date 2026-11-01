@@ -1,3 +1,4 @@
+
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,7 +14,12 @@ class Settings(BaseSettings):
     environment: str = "local"
 
     gemini_api_key: str | None = None
+
+    # Primary model
     gemini_model: str = "gemini-3.8-flash"
+
+    # Fallback model
+    gemini_fallback_model: str = "gemini-2.5-flash"
 
 
 @lru_cache

@@ -71,6 +71,15 @@ def create_client():
     return client, settings
 
 
+def get_models(settings) -> list[str]:
+    models = [settings.gemini_model]
+
+    if settings.gemini_fallback_model not in models:
+        models.append(settings.gemini_fallback_model)
+
+    return models
+
+
 def generate_answer(
     question: str,
     retrieved_chunks: list[dict],
@@ -82,23 +91,40 @@ def generate_answer(
     prompt = build_prompt(question, retrieved_chunks)
 
     try:
-        response = client.models.generate_content(
-            model=settings.gemini_model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                max_output_tokens=512,
-                thinking_config=types.ThinkingConfig(
-                    thinking_level="LOW"
-                ),
-            ),
+        errors = []
+
+        for model in get_models(settings):
+            try:
+                print(f"Trying Gemini model: {model}")
+
+                response = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        max_output_tokens=512,
+                        thinking_config=types.ThinkingConfig(
+                            thinking_level="LOW"
+                        ),
+                    ),
+                )
+
+                answer = response.text
+
+                if not answer:
+                    raise ValueError(
+                        f"{model} returned an empty response."
+                    )
+
+                print(f"Successful Gemini model: {model}")
+                return answer.strip()
+
+            except Exception as error:
+                print(f"Model {model} failed: {error}")
+                errors.append(f"{model}: {error}")
+
+        raise RuntimeError(
+            "All Gemini models failed. " + " | ".join(errors)
         )
-
-        answer = response.text
-
-        if not answer:
-            raise ValueError("Gemini returned an empty response.")
-
-        return answer.strip()
 
     finally:
         client.close()
@@ -116,28 +142,54 @@ def stream_answer(
     prompt = build_prompt(question, retrieved_chunks)
 
     try:
-        response_stream = client.models.generate_content_stream(
-            model=settings.gemini_model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                max_output_tokens=512,
-                thinking_config=types.ThinkingConfig(
-                    thinking_level="LOW"
-                ),
-            ),
-        )
+        models = get_models(settings)
 
-        received_text = False
+        for model_index, model in enumerate(models):
+            received_text = False
 
-        for chunk in response_stream:
-            text = chunk.text
+            try:
+                print(f"Trying streaming model: {model}")
 
-            if text:
-                received_text = True
-                yield text
+                response_stream = client.models.generate_content_stream(
+                    model=model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        max_output_tokens=512,
+                        thinking_config=types.ThinkingConfig(
+                            thinking_level="LOW"
+                        ),
+                    ),
+                )
 
-        if not received_text:
-            raise ValueError("Gemini returned an empty streaming response.")
+                for chunk in response_stream:
+                    text = chunk.text
+
+                    if text:
+                        received_text = True
+                        yield text
+
+                if not received_text:
+                    raise ValueError(
+                        f"{model} returned an empty streaming response."
+                    )
+
+                print(f"Successful streaming model: {model}")
+                return
+
+            except Exception as error:
+                print(f"Streaming model {model} failed: {error}")
+
+                # Do not restart with another model after
+                # sending partial answer text to the client.
+                if received_text:
+                    raise
+
+                if model_index == len(models) - 1:
+                    raise RuntimeError(
+                        "All Gemini streaming models failed."
+                    ) from error
+
+                print("Trying fallback model...")
 
     finally:
         client.close()
