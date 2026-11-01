@@ -29,6 +29,7 @@ Content:
         )
 
     context = "\n\n".join(context_parts)
+    print(f"Gemini context size: {len(context)} characters")
 
     prompt = f"""
 You are ShelfSignal, an FMCG annual report research assistant.
