@@ -9,6 +9,7 @@ from app.config import Settings, get_settings
 from app.llm import generate_answer, stream_answer
 from app.schemas import ChatRequest, ChatResponse, Citation
 from app.search import search
+from app.usage import get_usage_summary
 
 app = FastAPI(
     title="ShelfSignal API",
@@ -26,6 +27,11 @@ def health(settings: SettingsDep) -> dict:
         "app": settings.app_name,
         "environment": settings.environment,
     }
+
+
+@app.get("/usage")
+def usage() -> dict:
+    return get_usage_summary()
 
 
 def get_citations(results: list[dict]) -> list[Citation]:

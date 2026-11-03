@@ -14,12 +14,11 @@ class Settings(BaseSettings):
     environment: str = "local"
 
     gemini_api_key: str | None = None
-
-    # Primary model
     gemini_model: str = "gemini-3.8-flash"
-
-    # Fallback model
     gemini_fallback_model: str = "gemini-2.5-flash"
+
+    gemini_input_cost_per_million: float | None = None
+    gemini_output_cost_per_million: float | None = None
 
 
 @lru_cache

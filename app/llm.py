@@ -5,6 +5,7 @@ from google import genai
 from google.genai import types
 
 from app.config import get_settings
+from app.usage import record_usage
 
 
 def build_prompt(question: str, retrieved_chunks: list[dict]) -> str:
@@ -80,6 +81,31 @@ def get_models(settings) -> list[str]:
     return models
 
 
+def get_generation_config(model: str, settings):
+    config = {
+        "max_output_tokens": 512,
+    }
+
+    # Apply LOW thinking only to the primary model.
+    # The fallback model uses its default thinking configuration.
+    if model == settings.gemini_model:
+        config["thinking_config"] = types.ThinkingConfig(
+            thinking_level="LOW"
+        )
+
+    return types.GenerateContentConfig(**config)
+
+
+def record_response_usage(response, settings) -> None:
+    metadata = getattr(response, "usage_metadata", None)
+
+    record_usage(
+        metadata,
+        settings.gemini_input_cost_per_million,
+        settings.gemini_output_cost_per_million,
+    )
+
+
 def generate_answer(
     question: str,
     retrieved_chunks: list[dict],
@@ -100,12 +126,7 @@ def generate_answer(
                 response = client.models.generate_content(
                     model=model,
                     contents=prompt,
-                    config=types.GenerateContentConfig(
-                        max_output_tokens=512,
-                        thinking_config=types.ThinkingConfig(
-                            thinking_level="LOW"
-                        ),
-                    ),
+                    config=get_generation_config(model, settings),
                 )
 
                 answer = response.text
@@ -114,6 +135,8 @@ def generate_answer(
                     raise ValueError(
                         f"{model} returned an empty response."
                     )
+
+                record_response_usage(response, settings)
 
                 print(f"Successful Gemini model: {model}")
                 return answer.strip()
@@ -146,6 +169,7 @@ def stream_answer(
 
         for model_index, model in enumerate(models):
             received_text = False
+            final_usage_metadata = None
 
             try:
                 print(f"Trying streaming model: {model}")
@@ -153,15 +177,15 @@ def stream_answer(
                 response_stream = client.models.generate_content_stream(
                     model=model,
                     contents=prompt,
-                    config=types.GenerateContentConfig(
-                        max_output_tokens=512,
-                        thinking_config=types.ThinkingConfig(
-                            thinking_level="LOW"
-                        ),
-                    ),
+                    config=get_generation_config(model, settings),
                 )
 
                 for chunk in response_stream:
+                    metadata = getattr(chunk, "usage_metadata", None)
+
+                    if metadata is not None:
+                        final_usage_metadata = metadata
+
                     text = chunk.text
 
                     if text:
@@ -173,14 +197,20 @@ def stream_answer(
                         f"{model} returned an empty streaming response."
                     )
 
+                if final_usage_metadata is not None:
+                    record_usage(
+                        final_usage_metadata,
+                        settings.gemini_input_cost_per_million,
+                        settings.gemini_output_cost_per_million,
+                    )
+
                 print(f"Successful streaming model: {model}")
                 return
 
             except Exception as error:
                 print(f"Streaming model {model} failed: {error}")
 
-                # Do not restart with another model after
-                # sending partial answer text to the client.
+                # Do not retry with another model after sending partial text.
                 if received_text:
                     raise
 
