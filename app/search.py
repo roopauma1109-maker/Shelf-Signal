@@ -1,9 +1,14 @@
 
 import json
+import math
+import re
+from collections import Counter
+from functools import lru_cache
 from pathlib import Path
 
 import faiss
 from sentence_transformers import SentenceTransformer
+
 
 DATA_DIR = Path("data/processed")
 INDEX_FILE = DATA_DIR / "faiss.index"
@@ -11,26 +16,208 @@ METADATA_FILE = DATA_DIR / "chunks_metadata.jsonl"
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
+K1 = 1.5
+B = 0.75
+RRF_K = 60
+
+PHRASE_BOOST = 0.01
+
+STOPWORDS = {
+    "a", "an", "the", "is", "are", "was", "were",
+    "how", "what", "why", "when", "where", "who",
+    "does", "do", "did", "has", "have", "had",
+    "and", "or", "but", "in", "on", "at", "to",
+    "of", "for", "from", "with", "by", "its",
+    "their", "it", "this", "that", "across",
+    "company", "companies"
+}
+
+QUERY_SYNONYMS = {
+    "rural": ["village", "villages", "distribution"],
+    "market": ["markets", "availability", "network"],
+    "expand": ["expansion", "strengthen", "widespread"],
+    "expanding": ["expansion", "strengthen", "widespread"],
+    "distribution": ["network", "availability", "reach"],
+    "availability": ["distribution", "widespread", "reach"],
+    "village": ["villages", "rural"],
+}
+
+EVIDENCE_PHRASES = [
+    "urban and rural markets",
+    "extensive distribution network",
+    "widespread availability",
+    "rural markets",
+    "distribution network",
+]
+
+
+@lru_cache(maxsize=1)
+def get_model() -> SentenceTransformer:
+    """Load and cache the embedding model."""
+    return SentenceTransformer(MODEL_NAME)
+
 
 def load_metadata() -> list[dict]:
+    """Load metadata records from JSONL."""
     with METADATA_FILE.open("r", encoding="utf-8") as file:
-        return [json.loads(line) for line in file if line.strip()]
+        return [
+            json.loads(line)
+            for line in file
+            if line.strip()
+        ]
+
+
+def tokenize(text: str) -> list[str]:
+    """Normalize text into searchable lowercase tokens."""
+
+    words = re.findall(r"[a-z0-9]+", text.lower())
+    tokens = []
+
+    for word in words:
+        if word in STOPWORDS or len(word) <= 1:
+            continue
+
+        if word.endswith("ies") and len(word) > 4:
+            word = word[:-3] + "y"
+
+        elif (
+            word.endswith("s")
+            and not word.endswith("ss")
+            and len(word) > 4
+        ):
+            word = word[:-1]
+
+        tokens.append(word)
+
+    return tokens
+
+
+def expand_query(question: str) -> list[str]:
+    """Expand query with domain-specific synonyms."""
+
+    query_tokens = tokenize(question)
+    expanded_tokens = list(query_tokens)
+
+    for token in query_tokens:
+        expanded_tokens.extend(
+            QUERY_SYNONYMS.get(token, [])
+        )
+
+    return list(dict.fromkeys(expanded_tokens))
+
+
+def phrase_match_score(text: str, question: str) -> int:
+    """Score chunks containing relevant evidence phrases."""
+
+    text = text.lower()
+
+    score = 0
+
+    for phrase in EVIDENCE_PHRASES:
+        if phrase in text:
+            score += 1
+
+    return score
+
+
+def bm25_search(
+    question: str,
+    records: list[dict],
+) -> list[tuple[int, float]]:
+    """Calculate BM25 keyword relevance."""
+
+    if not records:
+        return []
+
+    query_tokens = expand_query(question)
+
+    if not query_tokens:
+        return []
+
+    documents = [
+        tokenize(record.get("text", ""))
+        for record in records
+    ]
+
+    document_lengths = [
+        len(document)
+        for document in documents
+    ]
+
+    average_length = (
+        sum(document_lengths) / len(document_lengths)
+    )
+
+    if average_length == 0:
+        return []
+
+    document_frequency = Counter()
+
+    for document in documents:
+        document_frequency.update(set(document))
+
+    total_documents = len(documents)
+    scores = []
+
+    for idx, document in enumerate(documents):
+
+        term_frequency = Counter(document)
+        document_length = document_lengths[idx]
+        score = 0.0
+
+        for term in query_tokens:
+
+            frequency = term_frequency.get(term, 0)
+
+            if frequency == 0:
+                continue
+
+            df = document_frequency.get(term, 0)
+
+            idf = math.log(
+                1 + (
+                    total_documents - df + 0.5
+                ) / (df + 0.5)
+            )
+
+            denominator = frequency + K1 * (
+                1 - B + B * document_length / average_length
+            )
+
+            score += idf * (
+                frequency * (K1 + 1) / denominator
+            )
+
+        scores.append((idx, score))
+
+    return sorted(
+        scores,
+        key=lambda item: item[1],
+        reverse=True,
+    )
 
 
 def search(
     question: str,
-    top_k: int = 5,
+    top_k: int = 50,
     company: str | None = None,
 ) -> list[dict]:
-    if not question.strip():
+    """Hybrid retrieval using FAISS, BM25, RRF and phrase matching."""
+
+    if not question or not question.strip():
         raise ValueError("Question cannot be empty.")
 
     if top_k < 1:
         raise ValueError("top_k must be at least 1.")
 
-    if not INDEX_FILE.exists() or not METADATA_FILE.exists():
+    if not INDEX_FILE.exists():
         raise FileNotFoundError(
-            "Index or metadata not found. Run embeddings first."
+            f"FAISS index not found: {INDEX_FILE}"
+        )
+
+    if not METADATA_FILE.exists():
+        raise FileNotFoundError(
+            f"Metadata file not found: {METADATA_FILE}"
         )
 
     index = faiss.read_index(str(INDEX_FILE))
@@ -41,56 +228,223 @@ def search(
             "FAISS index and metadata record counts do not match."
         )
 
-    model = SentenceTransformer(MODEL_NAME)
+    if index.ntotal == 0:
+        return []
+
+    # Company filtering
+    eligible_indices = [
+        idx
+        for idx, record in enumerate(metadata)
+        if (
+            not company
+            or str(record.get("company", "")).casefold()
+            == company.strip().casefold()
+        )
+    ]
+
+    if not eligible_indices:
+        return []
+
+    eligible_set = set(eligible_indices)
+
+    # Query embedding
+    model = get_model()
+
     question_vector = model.encode(
-        [question],
+        [question.strip()],
         normalize_embeddings=True,
         convert_to_numpy=True,
     ).astype("float32")
 
-    # Search the index and filter results by company if requested.
-    scores, indices = index.search(question_vector, index.ntotal)
+    if question_vector.shape[1] != index.d:
+        raise ValueError(
+            "Query and FAISS embedding dimensions do not match."
+        )
 
-    results = []
+    # -----------------------------------------
+    # 1. Semantic search using FAISS
+    # -----------------------------------------
 
-    for score, idx in zip(scores[0], indices[0], strict=True):
-        if idx < 0:
+    scores, indices = index.search(
+        question_vector,
+        index.ntotal,
+    )
+
+    semantic_rank = {}
+    rank = 0
+
+    for score, idx in zip(
+        scores[0],
+        indices[0],
+        strict=True,
+    ):
+
+        idx = int(idx)
+
+        if idx not in eligible_set:
             continue
 
-        record = metadata[int(idx)]
+        rank += 1
 
-        if (
-            company
-            and record["company"].casefold() != company.strip().casefold()
-        ):
-            continue
+        semantic_rank[idx] = (
+            rank,
+            float(score),
+        )
 
-        result = record.copy()
-        result["similarity_score"] = float(score)
-        results.append(result)
+    # -----------------------------------------
+    # 2. Keyword search using BM25
+    # -----------------------------------------
 
-        if len(results) >= top_k:
-            break
+    eligible_records = [
+        metadata[idx]
+        for idx in eligible_indices
+    ]
 
-    return results
+    keyword_results = bm25_search(
+        question,
+        eligible_records,
+    )
+
+    keyword_rank = {}
+
+    for rank, (local_idx, score) in enumerate(
+        keyword_results,
+        start=1,
+    ):
+
+        original_idx = eligible_indices[local_idx]
+
+        keyword_rank[original_idx] = (
+            rank,
+            score,
+        )
+
+    # -----------------------------------------
+    # 3. Reciprocal Rank Fusion
+    # -----------------------------------------
+
+    combined_results = []
+
+    for idx in eligible_indices:
+
+        semantic_info = semantic_rank.get(idx)
+        keyword_info = keyword_rank.get(idx)
+
+        semantic_score = (
+            semantic_info[1]
+            if semantic_info
+            else 0.0
+        )
+
+        keyword_score = (
+            keyword_info[1]
+            if keyword_info
+            else 0.0
+        )
+
+        hybrid_score = 0.0
+
+        if semantic_info:
+            hybrid_score += 1 / (
+                RRF_K + semantic_info[0]
+            )
+
+        if keyword_info:
+            hybrid_score += 1 / (
+                RRF_K + keyword_info[0]
+            )
+
+        result = metadata[idx].copy()
+
+        result["similarity_score"] = semantic_score
+        result["keyword_score"] = keyword_score
+        result["hybrid_score"] = hybrid_score
+
+        combined_results.append(result)
+
+    # -----------------------------------------
+    # 4. Evidence phrase boost
+    # -----------------------------------------
+
+    for result in combined_results:
+
+        phrase_score = phrase_match_score(
+            result.get("text", ""),
+            question,
+        )
+
+        result["phrase_score"] = phrase_score
+
+        result["hybrid_score"] += (
+            phrase_score * PHRASE_BOOST
+        )
+
+    # -----------------------------------------
+    # 5. Final ranking
+    # -----------------------------------------
+
+    combined_results.sort(
+        key=lambda item: item["hybrid_score"],
+        reverse=True,
+    )
+
+    return combined_results[:top_k]
 
 
 if __name__ == "__main__":
-    question = input("Enter your question: ")
+
+    question = input("Enter your question: ").strip()
+
     company = input(
-        "Company filter (Britannia, HUL, ITC, Dabur, Marico, Nestle_India; "
+        "Company filter "
+        "(Britannia, HUL, ITC, Dabur, Marico, Nestle_India; "
         "press Enter for all): "
     ).strip() or None
 
-    results = search(question, company=company)
+    try:
 
-    if not results:
-        print("No matching results found.")
+        results = search(
+            question=question,
+            top_k=50,
+            company=company,
+        )
 
-    for number, result in enumerate(results, start=1):
-        print(f"\n--- Result {number} ---")
-        print("Company:", result["company"])
-        print("Report:", result["source_file"])
-        print("Page:", result["page_number"])
-        print("Similarity:", round(result["similarity_score"], 4))
-        print("Text:", result["text"][:500])
+        if not results:
+            print("\nNo matching results found.")
+
+        for number, result in enumerate(
+            results,
+            start=1,
+        ):
+
+            print(f"\n--- Result {number} ---")
+            print("Company:", result.get("company"))
+            print("Page:", result.get("page_number"))
+
+            print(
+                "Semantic:",
+                round(result["similarity_score"], 4),
+            )
+
+            print(
+                "Keyword:",
+                round(result["keyword_score"], 4),
+            )
+
+            print(
+                "Phrase score:",
+                result["phrase_score"],
+            )
+
+            print(
+                "Hybrid:",
+                round(result["hybrid_score"], 6),
+            )
+
+            print(
+                "Text:",
+                result.get("text", "")[:350],
+            )
+
+    except (ValueError, FileNotFoundError) as error:
+        print("Error:", error)
