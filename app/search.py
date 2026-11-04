@@ -20,8 +20,6 @@ K1 = 1.5
 B = 0.75
 RRF_K = 60
 
-PHRASE_BOOST = 0.01
-
 STOPWORDS = {
     "a", "an", "the", "is", "are", "was", "were",
     "how", "what", "why", "when", "where", "who",
@@ -41,14 +39,6 @@ QUERY_SYNONYMS = {
     "availability": ["distribution", "widespread", "reach"],
     "village": ["villages", "rural"],
 }
-
-EVIDENCE_PHRASES = [
-    "urban and rural markets",
-    "extensive distribution network",
-    "widespread availability",
-    "rural markets",
-    "distribution network",
-]
 
 
 @lru_cache(maxsize=1)
@@ -104,20 +94,6 @@ def expand_query(question: str) -> list[str]:
         )
 
     return list(dict.fromkeys(expanded_tokens))
-
-
-def phrase_match_score(text: str, question: str) -> int:
-    """Score chunks containing relevant evidence phrases."""
-
-    text = text.lower()
-
-    score = 0
-
-    for phrase in EVIDENCE_PHRASES:
-        if phrase in text:
-            score += 1
-
-    return score
 
 
 def bm25_search(
@@ -202,7 +178,7 @@ def search(
     top_k: int = 50,
     company: str | None = None,
 ) -> list[dict]:
-    """Hybrid retrieval using FAISS, BM25, RRF and phrase matching."""
+    """Hybrid retrieval using FAISS, BM25 and RRF."""
 
     if not question or not question.strip():
         raise ValueError("Question cannot be empty.")
@@ -231,7 +207,10 @@ def search(
     if index.ntotal == 0:
         return []
 
-    # Company filtering
+    # -----------------------------------------
+    # 1. Company filtering
+    # -----------------------------------------
+
     eligible_indices = [
         idx
         for idx, record in enumerate(metadata)
@@ -247,7 +226,10 @@ def search(
 
     eligible_set = set(eligible_indices)
 
-    # Query embedding
+    # -----------------------------------------
+    # 2. Query embedding
+    # -----------------------------------------
+
     model = get_model()
 
     question_vector = model.encode(
@@ -262,7 +244,7 @@ def search(
         )
 
     # -----------------------------------------
-    # 1. Semantic search using FAISS
+    # 3. Semantic search using FAISS
     # -----------------------------------------
 
     scores, indices = index.search(
@@ -271,6 +253,7 @@ def search(
     )
 
     semantic_rank = {}
+
     rank = 0
 
     for score, idx in zip(
@@ -292,7 +275,7 @@ def search(
         )
 
     # -----------------------------------------
-    # 2. Keyword search using BM25
+    # 4. Keyword search using BM25
     # -----------------------------------------
 
     eligible_records = [
@@ -320,7 +303,7 @@ def search(
         )
 
     # -----------------------------------------
-    # 3. Reciprocal Rank Fusion
+    # 5. Reciprocal Rank Fusion
     # -----------------------------------------
 
     combined_results = []
@@ -363,24 +346,7 @@ def search(
         combined_results.append(result)
 
     # -----------------------------------------
-    # 4. Evidence phrase boost
-    # -----------------------------------------
-
-    for result in combined_results:
-
-        phrase_score = phrase_match_score(
-            result.get("text", ""),
-            question,
-        )
-
-        result["phrase_score"] = phrase_score
-
-        result["hybrid_score"] += (
-            phrase_score * PHRASE_BOOST
-        )
-
-    # -----------------------------------------
-    # 5. Final ranking
+    # 6. Final ranking
     # -----------------------------------------
 
     combined_results.sort(
@@ -420,6 +386,7 @@ if __name__ == "__main__":
             print(f"\n--- Result {number} ---")
             print("Company:", result.get("company"))
             print("Page:", result.get("page_number"))
+            print("Chunk ID:", result.get("chunk_id"))
 
             print(
                 "Semantic:",
@@ -429,11 +396,6 @@ if __name__ == "__main__":
             print(
                 "Keyword:",
                 round(result["keyword_score"], 4),
-            )
-
-            print(
-                "Phrase score:",
-                result["phrase_score"],
             )
 
             print(
