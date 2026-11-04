@@ -40,16 +40,12 @@ def test_chat_no_results(client):
     with patch("app.main.search", return_value=[]):
         response = client.post(
             "/chat",
-            json={
-                "question": "Explain an unrelated topic."
-            },
+            json={"question": "Explain an unrelated topic."},
         )
 
     assert response.status_code == 200
     assert response.json()["citations"] == []
-    assert response.json()["answer"] == (
-        "No relevant information was found in the reports."
-    )
+    assert response.json()["answer"] == ("No relevant information was found in the reports.")
 
 
 def test_chat_gemini_failure(client):
@@ -71,9 +67,7 @@ def test_chat_gemini_failure(client):
     ):
         response = client.post(
             "/chat",
-            json={
-                "question": "How does Britannia expand rural sales?"
-            },
+            json={"question": "How does Britannia expand rural sales?"},
         )
 
     assert response.status_code == 502

@@ -11,10 +11,7 @@ CHUNK_OVERLAP = 40
 
 def split_sentences(text: str) -> list[str]:
     """Split paragraph into sentence-like units."""
-    sentences = re.split(
-        r'(?<=[.!?])\s+(?=[A-Z0-9“"(\[])',
-        text.strip()
-    )
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z0-9“"(\[])', text.strip())
 
     return [sentence.strip() for sentence in sentences if sentence.strip()]
 
@@ -123,17 +120,12 @@ def main() -> None:
                     "report_year": document["report_year"],
                     "page_number": document["page_number"],
                     "source_file": document["source_file"],
-                    "chunk_id": (
-                        f'{document["company"]}_'
-                        f'{document["page_number"]}_{index}'
-                    ),
+                    "chunk_id": (f"{document['company']}_{document['page_number']}_{index}"),
                     "chunk_index": index,
                     "text": chunk,
                 }
 
-                output.write(
-                    json.dumps(record, ensure_ascii=False) + "\n"
-                )
+                output.write(json.dumps(record, ensure_ascii=False) + "\n")
 
                 total_chunks += 1
 

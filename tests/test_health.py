@@ -1,4 +1,3 @@
-
 def test_health_is_fast_and_ok(client):
     response = client.get("/health")
 

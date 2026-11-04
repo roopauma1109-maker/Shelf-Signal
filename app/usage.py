@@ -1,4 +1,3 @@
-
 from threading import Lock
 
 _lock = Lock()
@@ -19,27 +18,17 @@ def record_usage(
     prompt_cost_per_million: float | None = None,
     response_cost_per_million: float | None = None,
 ) -> None:
-    prompt_tokens = int(
-        getattr(usage_metadata, "prompt_token_count", 0) or 0
-    )
-    response_tokens = int(
-        getattr(usage_metadata, "candidates_token_count", 0) or 0
-    )
-    total_tokens = int(
-        getattr(usage_metadata, "total_token_count", 0) or 0
-    )
+    prompt_tokens = int(getattr(usage_metadata, "prompt_token_count", 0) or 0)
+    response_tokens = int(getattr(usage_metadata, "candidates_token_count", 0) or 0)
+    total_tokens = int(getattr(usage_metadata, "total_token_count", 0) or 0)
 
-    cost_available = (
-        prompt_cost_per_million is not None
-        and response_cost_per_million is not None
-    )
+    cost_available = prompt_cost_per_million is not None and response_cost_per_million is not None
 
     estimated_cost = 0.0
 
     if cost_available:
         estimated_cost = (
-            prompt_tokens * prompt_cost_per_million
-            + response_tokens * response_cost_per_million
+            prompt_tokens * prompt_cost_per_million + response_tokens * response_cost_per_million
         ) / 1_000_000
 
     with _lock:
@@ -62,8 +51,6 @@ def get_usage_summary() -> dict:
         return {
             **_usage,
             "estimated_cost_usd": (
-                round(_usage["estimated_cost_usd"], 8)
-                if _usage["cost_available"]
-                else None
+                round(_usage["estimated_cost_usd"], 8) if _usage["cost_available"] else None
             ),
         }

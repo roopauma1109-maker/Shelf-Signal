@@ -76,4 +76,3 @@ Pages with extractable text: 2049
 - A total of 2,053 pages were identified, with extractable text available on 2,049 pages.
 - PDF page counts and text extraction details are documented in the dataset inventory.
 - The collected reports will be used as source documents for researching FMCG rural growth, sales performance, and pricing.
-

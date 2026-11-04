@@ -1,4 +1,3 @@
-
 import json
 from pathlib import Path
 
@@ -52,19 +51,14 @@ def main() -> None:
                 documents = extract_pdf(pdf_path)
 
                 for document in documents:
-                    output.write(
-                        json.dumps(document, ensure_ascii=False) + "\n"
-                    )
+                    output.write(json.dumps(document, ensure_ascii=False) + "\n")
 
                 total_documents += len(documents)
 
                 with pymupdf.open(pdf_path) as pdf:
                     total_pages += len(pdf)
 
-                print(
-                    f"{pdf_path.parent.name}: "
-                    f"{len(documents)} pages extracted"
-                )
+                print(f"{pdf_path.parent.name}: {len(documents)} pages extracted")
 
             except Exception as error:
                 print(f"ERROR processing {pdf_path}: {error}")

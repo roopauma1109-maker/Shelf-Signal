@@ -1,4 +1,3 @@
-
 import json
 from typing import Annotated
 
@@ -40,9 +39,7 @@ def get_citations(results: list[dict]) -> list[Citation]:
             company=result["company"],
             report=result["source_file"],
             page=result["page_number"],
-            similarity_score=round(
-                result["similarity_score"], 4
-            ),
+            similarity_score=round(result["similarity_score"], 4),
         )
         for result in results
     ]
@@ -112,9 +109,7 @@ def chat_stream(request: ChatRequest):
                 event_data = json.dumps({"text": text})
                 yield f"event: token\ndata: {event_data}\n\n"
 
-            citation_data = json.dumps(
-                [citation.model_dump() for citation in citations]
-            )
+            citation_data = json.dumps([citation.model_dump() for citation in citations])
 
             yield f"event: citations\ndata: {citation_data}\n\n"
             yield "event: done\ndata: {}\n\n"

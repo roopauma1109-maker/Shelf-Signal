@@ -1,4 +1,3 @@
-
 import json
 import math
 import re
@@ -20,13 +19,45 @@ B = 0.75
 RRF_K = 60
 
 STOPWORDS = {
-    "a", "an", "the", "is", "are", "was", "were",
-    "how", "what", "why", "when", "where", "who",
-    "does", "do", "did", "has", "have", "had",
-    "and", "or", "but", "in", "on", "at", "to",
-    "of", "for", "from", "with", "by", "its",
-    "their", "it", "this", "that", "across",
-    "company", "companies"
+    "a",
+    "an",
+    "the",
+    "is",
+    "are",
+    "was",
+    "were",
+    "how",
+    "what",
+    "why",
+    "when",
+    "where",
+    "who",
+    "does",
+    "do",
+    "did",
+    "has",
+    "have",
+    "had",
+    "and",
+    "or",
+    "but",
+    "in",
+    "on",
+    "at",
+    "to",
+    "of",
+    "for",
+    "from",
+    "with",
+    "by",
+    "its",
+    "their",
+    "it",
+    "this",
+    "that",
+    "across",
+    "company",
+    "companies",
 }
 
 QUERY_SYNONYMS = {
@@ -49,11 +80,7 @@ def get_model() -> SentenceTransformer:
 def load_metadata() -> list[dict]:
     """Load metadata records from JSONL."""
     with METADATA_FILE.open("r", encoding="utf-8") as file:
-        return [
-            json.loads(line)
-            for line in file
-            if line.strip()
-        ]
+        return [json.loads(line) for line in file if line.strip()]
 
 
 def tokenize(text: str) -> list[str]:
@@ -69,11 +96,7 @@ def tokenize(text: str) -> list[str]:
         if word.endswith("ies") and len(word) > 4:
             word = word[:-3] + "y"
 
-        elif (
-            word.endswith("s")
-            and not word.endswith("ss")
-            and len(word) > 4
-        ):
+        elif word.endswith("s") and not word.endswith("ss") and len(word) > 4:
             word = word[:-1]
 
         tokens.append(word)
@@ -88,9 +111,7 @@ def expand_query(question: str) -> list[str]:
     expanded_tokens = list(query_tokens)
 
     for token in query_tokens:
-        expanded_tokens.extend(
-            QUERY_SYNONYMS.get(token, [])
-        )
+        expanded_tokens.extend(QUERY_SYNONYMS.get(token, []))
 
     return list(dict.fromkeys(expanded_tokens))
 
@@ -109,19 +130,11 @@ def bm25_search(
     if not query_tokens:
         return []
 
-    documents = [
-        tokenize(record.get("text", ""))
-        for record in records
-    ]
+    documents = [tokenize(record.get("text", "")) for record in records]
 
-    document_lengths = [
-        len(document)
-        for document in documents
-    ]
+    document_lengths = [len(document) for document in documents]
 
-    average_length = (
-        sum(document_lengths) / len(document_lengths)
-    )
+    average_length = sum(document_lengths) / len(document_lengths)
 
     if average_length == 0:
         return []
@@ -135,13 +148,11 @@ def bm25_search(
     scores = []
 
     for idx, document in enumerate(documents):
-
         term_frequency = Counter(document)
         document_length = document_lengths[idx]
         score = 0.0
 
         for term in query_tokens:
-
             frequency = term_frequency.get(term, 0)
 
             if frequency == 0:
@@ -149,19 +160,11 @@ def bm25_search(
 
             df = document_frequency.get(term, 0)
 
-            idf = math.log(
-                1 + (
-                    total_documents - df + 0.5
-                ) / (df + 0.5)
-            )
+            idf = math.log(1 + (total_documents - df + 0.5) / (df + 0.5))
 
-            denominator = frequency + K1 * (
-                1 - B + B * document_length / average_length
-            )
+            denominator = frequency + K1 * (1 - B + B * document_length / average_length)
 
-            score += idf * (
-                frequency * (K1 + 1) / denominator
-            )
+            score += idf * (frequency * (K1 + 1) / denominator)
 
         scores.append((idx, score))
 
@@ -186,22 +189,16 @@ def search(
         raise ValueError("top_k must be at least 1.")
 
     if not INDEX_FILE.exists():
-        raise FileNotFoundError(
-            f"FAISS index not found: {INDEX_FILE}"
-        )
+        raise FileNotFoundError(f"FAISS index not found: {INDEX_FILE}")
 
     if not METADATA_FILE.exists():
-        raise FileNotFoundError(
-            f"Metadata file not found: {METADATA_FILE}"
-        )
+        raise FileNotFoundError(f"Metadata file not found: {METADATA_FILE}")
 
     index = faiss.read_index(str(INDEX_FILE))
     metadata = load_metadata()
 
     if index.ntotal != len(metadata):
-        raise ValueError(
-            "FAISS index and metadata record counts do not match."
-        )
+        raise ValueError("FAISS index and metadata record counts do not match.")
 
     if index.ntotal == 0:
         return []
@@ -213,11 +210,7 @@ def search(
     eligible_indices = [
         idx
         for idx, record in enumerate(metadata)
-        if (
-            not company
-            or str(record.get("company", "")).casefold()
-            == company.strip().casefold()
-        )
+        if (not company or str(record.get("company", "")).casefold() == company.strip().casefold())
     ]
 
     if not eligible_indices:
@@ -238,9 +231,7 @@ def search(
     ).astype("float32")
 
     if question_vector.shape[1] != index.d:
-        raise ValueError(
-            "Query and FAISS embedding dimensions do not match."
-        )
+        raise ValueError("Query and FAISS embedding dimensions do not match.")
 
     # -----------------------------------------
     # 3. Semantic search using FAISS
@@ -260,7 +251,6 @@ def search(
         indices[0],
         strict=True,
     ):
-
         idx = int(idx)
 
         if idx not in eligible_set:
@@ -277,10 +267,7 @@ def search(
     # 4. Keyword search using BM25
     # -----------------------------------------
 
-    eligible_records = [
-        metadata[idx]
-        for idx in eligible_indices
-    ]
+    eligible_records = [metadata[idx] for idx in eligible_indices]
 
     keyword_results = bm25_search(
         question,
@@ -293,7 +280,6 @@ def search(
         keyword_results,
         start=1,
     ):
-
         original_idx = eligible_indices[local_idx]
 
         keyword_rank[original_idx] = (
@@ -308,33 +294,20 @@ def search(
     combined_results = []
 
     for idx in eligible_indices:
-
         semantic_info = semantic_rank.get(idx)
         keyword_info = keyword_rank.get(idx)
 
-        semantic_score = (
-            semantic_info[1]
-            if semantic_info
-            else 0.0
-        )
+        semantic_score = semantic_info[1] if semantic_info else 0.0
 
-        keyword_score = (
-            keyword_info[1]
-            if keyword_info
-            else 0.0
-        )
+        keyword_score = keyword_info[1] if keyword_info else 0.0
 
         hybrid_score = 0.0
 
         if semantic_info:
-            hybrid_score += 1 / (
-                RRF_K + semantic_info[0]
-            )
+            hybrid_score += 1 / (RRF_K + semantic_info[0])
 
         if keyword_info:
-            hybrid_score += 1 / (
-                RRF_K + keyword_info[0]
-            )
+            hybrid_score += 1 / (RRF_K + keyword_info[0])
 
         result = metadata[idx].copy()
 
@@ -357,17 +330,16 @@ def search(
 
 
 if __name__ == "__main__":
-
     question = input("Enter your question: ").strip()
 
-    company = input(
-        "Company filter "
-        "(Britannia, HUL, ITC, Dabur, Marico, Nestle_India; "
-        "press Enter for all): "
-    ).strip() or None
+    company = (
+        input(
+            "Company filter (Britannia, HUL, ITC, Dabur, Marico, Nestle_India; press Enter for all): "
+        ).strip()
+        or None
+    )
 
     try:
-
         results = search(
             question=question,
             top_k=50,
@@ -381,7 +353,6 @@ if __name__ == "__main__":
             results,
             start=1,
         ):
-
             print(f"\n--- Result {number} ---")
             print("Company:", result.get("company"))
             print("Page:", result.get("page_number"))

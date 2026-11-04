@@ -1,4 +1,3 @@
-
 from collections.abc import Iterator
 
 from google import genai
@@ -89,9 +88,7 @@ def get_generation_config(model: str, settings):
     # Apply LOW thinking only to the primary model.
     # The fallback model uses its default thinking configuration.
     if model == settings.gemini_model:
-        config["thinking_config"] = types.ThinkingConfig(
-            thinking_level="LOW"
-        )
+        config["thinking_config"] = types.ThinkingConfig(thinking_level="LOW")
 
     return types.GenerateContentConfig(**config)
 
@@ -132,9 +129,7 @@ def generate_answer(
                 answer = response.text
 
                 if not answer:
-                    raise ValueError(
-                        f"{model} returned an empty response."
-                    )
+                    raise ValueError(f"{model} returned an empty response.")
 
                 record_response_usage(response, settings)
 
@@ -145,9 +140,7 @@ def generate_answer(
                 print(f"Model {model} failed: {error}")
                 errors.append(f"{model}: {error}")
 
-        raise RuntimeError(
-            "All Gemini models failed. " + " | ".join(errors)
-        )
+        raise RuntimeError("All Gemini models failed. " + " | ".join(errors))
 
     finally:
         client.close()
@@ -193,9 +186,7 @@ def stream_answer(
                         yield text
 
                 if not received_text:
-                    raise ValueError(
-                        f"{model} returned an empty streaming response."
-                    )
+                    raise ValueError(f"{model} returned an empty streaming response.")
 
                 if final_usage_metadata is not None:
                     record_usage(
@@ -215,9 +206,7 @@ def stream_answer(
                     raise
 
                 if model_index == len(models) - 1:
-                    raise RuntimeError(
-                        "All Gemini streaming models failed."
-                    ) from error
+                    raise RuntimeError("All Gemini streaming models failed.") from error
 
                 print("Trying fallback model...")
 
