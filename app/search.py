@@ -9,7 +9,6 @@ from pathlib import Path
 import faiss
 from sentence_transformers import SentenceTransformer
 
-
 DATA_DIR = Path("data/processed")
 INDEX_FILE = DATA_DIR / "faiss.index"
 METADATA_FILE = DATA_DIR / "chunks_metadata.jsonl"
