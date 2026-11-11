@@ -38,6 +38,8 @@ Instructions:
 - Mention relevant company names and page numbers.
 - Focus on FMCG growth, rural distribution, pricing and market strategies.
 - Clearly distinguish missing retrieved information from information absent in the full report.
+- Provide a complete answer. Do not stop in the middle of a sentence.
+- Use bullet points when explaining multiple strategies.
 
 REPORT CONTEXT:
 {context}
@@ -58,12 +60,12 @@ def create_client():
     client = genai.Client(
         api_key=settings.gemini_api_key,
         http_options=types.HttpOptions(
-            timeout=120000,
+            timeout=45000,
             retry_options=types.HttpRetryOptions(
-                attempts=2,
+                attempts=1,
                 initial_delay=1,
-                max_delay=5,
-                http_status_codes=[408, 429, 500, 502, 503, 504],
+                max_delay=2,
+                http_status_codes=[429, 500, 502, 503, 504],
             ),
         ),
     )
@@ -82,11 +84,9 @@ def get_models(settings) -> list[str]:
 
 def get_generation_config(model: str, settings):
     config = {
-        "max_output_tokens": 512,
+        "max_output_tokens": 1024,
     }
 
-    # Apply LOW thinking only to the primary model.
-    # The fallback model uses its default thinking configuration.
     if model == settings.gemini_model:
         config["thinking_config"] = types.ThinkingConfig(thinking_level="LOW")
 
@@ -201,7 +201,6 @@ def stream_answer(
             except Exception as error:
                 print(f"Streaming model {model} failed: {error}")
 
-                # Do not retry with another model after sending partial text.
                 if received_text:
                     raise
 
