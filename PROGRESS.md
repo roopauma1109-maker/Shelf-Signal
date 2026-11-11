@@ -30,5 +30,5 @@
 
 | Date | What I did today | Commit |
 |---|---|---|
-| 4 Nov 2026 | Added pre-commit hooks, formatting and validation; all 10 tests passed | `e808444` |
-| 11 Nov 2026 | Updated Gemini timeout, retry configuration and output token limit; Ruff passed and all 10 tests passed. Docker rebuild started; verification pending | Not committed yet |
+| 4 Nov 2026 | Added pre-commit hooks, formatting and validation; all 10 tests passed
+| 11 Nov 2026 | Updated Gemini timeout, retry configuration and output token limit; Ruff passed and all 10 tests passed. Docker rebuild started; verification pending
